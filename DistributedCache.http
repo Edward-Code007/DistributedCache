@@ -1,0 +1,46 @@
+@DistributedCache_HostAddress = http://localhost:5232
+
+### Listar todos los productos
+GET {{DistributedCache_HostAddress}}/products
+Accept: application/json
+
+### Obtener producto por ID
+GET {{DistributedCache_HostAddress}}/products/1
+Accept: application/json
+
+### Obtener producto 3
+GET {{DistributedCache_HostAddress}}/products/3
+Accept: application/json
+
+### Crear nuevo producto
+POST {{DistributedCache_HostAddress}}/products
+Content-Type: application/json
+
+{
+  "name": "Webcam",
+  "description": "Webcam 1080p con microfono integrado",
+  "price": 59.99,
+  "stock": 120
+}
+
+### Actualizar producto
+PUT {{DistributedCache_HostAddress}}/products/1
+Content-Type: application/json
+
+{
+  "name": "Laptop Pro",
+  "description": "Laptop gaming 32GB RAM RTX 4070",
+  "price": 1799.99,
+  "stock": 10
+}
+
+### Verificar producto actualizado
+GET {{DistributedCache_HostAddress}}/products/1
+Accept: application/json
+
+### Eliminar producto
+DELETE {{DistributedCache_HostAddress}}/products/5
+
+### Producto inexistente
+GET {{DistributedCache_HostAddress}}/products/999
+Accept: application/json
