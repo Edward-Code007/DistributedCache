@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="DistributedCache.src/DistributedCache.csproj" />
+  <Project Path="DistributedCache.test/DistributedCache.test.csproj" />
+</Solution>

@@ -16,6 +16,9 @@
 # User-specific files (MonoDevelop/Xamarin Studio)
 *.userprefs
 
+*/bin
+*/obj
+
 # Mono auto generated files
 mono_crash.*
 
@@ -480,19 +483,3 @@ $RECYCLE.BIN/
 
 # Vim temporary swap files
 *.swp
-
-# Environment and secrets
-*.env.*
-appsettings.*.local.json
-appsettings.Local.json
-
-# Redis data
-redis/data/
-*.rdb
-*.aof
-
-# Docker volumes
-docker-volumes/
-
-# Claude Code
-.claude/
