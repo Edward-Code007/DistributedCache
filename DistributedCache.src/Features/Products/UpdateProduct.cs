@@ -13,21 +13,34 @@ public class UpdateProduct : IEndpoint
     {
         app.MapPut("/products/{id:int}", async (int id, Product input, AppDbContext db, IDistributedCache cache, IOptions<CacheSettings> cacheSettings) =>
         {
-            var product = await db.Products.FindAsync(id);
-            if (product is null)
-                return Results.NotFound(new { message = "Product not found", id });
+            var product = await UpdateProductInDatabase(db, id, input);
+            if (product is null) return Results.NotFound(new { message = "Product not found", id });
 
-            product.Name = input.Name;
-            product.Description = input.Description;
-            product.Price = input.Price;
-            product.Stock = input.Stock;
+            await InvalidateProductCache(id, cacheSettings.Value, cache);
 
-            await db.SaveChangesAsync();
-
-            await cache.RemoveAsync($"{cacheSettings.Value.ProductKeyPrefix}:{id}");
-
-            return Results.Ok(product);
+            return Results.Ok(new { message = "Product updated successfully", product });
         })
         .WithName("UpdateProduct");
     }
+
+    private static async Task<Product?> UpdateProductInDatabase(AppDbContext db, int id, Product input)
+    {
+        var product = await db.Products.FindAsync(id);
+        if (product is null) return null;
+
+        product.Name = input.Name;
+        product.Description = input.Description;
+        product.Price = input.Price;
+        product.Stock = input.Stock;
+
+        await db.SaveChangesAsync();
+        return product;
+    }
+
+    private static async Task InvalidateProductCache(int id, CacheSettings settings, IDistributedCache cache)
+    {
+        var cacheKey = $"{settings.ProductKeyPrefix}:{id}";
+        await cache.RemoveAsync(cacheKey);
+    }
 }
+
