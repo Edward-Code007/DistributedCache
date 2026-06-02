@@ -1,14 +1,25 @@
 using DistributedCache.Models;
+using DistributedCache.Settings;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 
 namespace DistributedCache.Data;
 
 public class AppDbContext : DbContext
 {
-    public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) { }
+   private DatabaseSettings _dbSettings;
+    public AppDbContext(DbContextOptions<AppDbContext> options,IOptions<DatabaseSettings> dbSettings) : base(options)
+    {
+        this._dbSettings = dbSettings.Value;
+    }
 
     public DbSet<Product> Products => Set<Product>();
 
+    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+    {
+        base.OnConfiguring(optionsBuilder);
+        optionsBuilder.UseNpgsql(this._dbSettings.StringConnection);
+    }
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<Product>().HasQueryFilter(p => !p.IsDeleted);
