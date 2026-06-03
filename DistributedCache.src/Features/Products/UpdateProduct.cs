@@ -11,7 +11,7 @@ public class UpdateProduct : IEndpoint
 {
     public static void MapEndpoint(IEndpointRouteBuilder app)
     {
-        app.MapPut("/products/{id:int}", async (int id, Product input, AppDbContext db, IDistributedCache cache, IOptions<CacheSettings> cacheSettings) =>
+        app.MapPut("/products/{id:int}", async (int id, ProductUpdateDto input, AppDbContext db, IDistributedCache cache, IOptions<CacheSettings> cacheSettings) =>
         {
             var product = await UpdateProductInDatabase(db, id, input);
             if (product is null) return Results.NotFound(new { message = "Product not found", id });
@@ -23,17 +23,15 @@ public class UpdateProduct : IEndpoint
         .WithName("UpdateProduct");
     }
 
-    private static async Task<Product?> UpdateProductInDatabase(AppDbContext db, int id, Product input)
+    private static async Task<Product?> UpdateProductInDatabase(AppDbContext db, int id, ProductUpdateDto input)
     {
         var product = await db.Products.FindAsync(id);
         if (product is null) return null;
-
-        product.Name = input.Name;
-        product.Description = input.Description;
-        product.Price = input.Price;
-        product.Stock = input.Stock;
-
+        product.Price = input.Price ?? product.Price;
+        if (db.ChangeTracker.HasChanges())
+        {
         await db.SaveChangesAsync();
+        }
         return product;
     }
 
