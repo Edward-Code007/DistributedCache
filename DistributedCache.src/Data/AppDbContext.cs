@@ -17,7 +17,6 @@ public class AppDbContext(DbContextOptions<AppDbContext> options,IOptions<Databa
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<Product>().HasQueryFilter(p => !p.IsDeleted);
-
         if (env.IsDevelopment())
         {
         modelBuilder.Entity<Product>().HasData(
