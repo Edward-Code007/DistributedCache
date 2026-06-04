@@ -12,12 +12,13 @@ public class AppDbContext(DbContextOptions<AppDbContext> options,IOptions<Databa
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {
         base.OnConfiguring(optionsBuilder);
-        optionsBuilder.UseNpgsql(dbSettings.Value.StringConnection);
+        if(!optionsBuilder.IsConfigured) optionsBuilder.UseNpgsql(dbSettings.Value.StringConnection);
+
     }
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<Product>().HasQueryFilter(p => !p.IsDeleted);
-        if (env.IsDevelopment())
+        if (env.IsDevelopment() || env.EnvironmentName=="xUnit")
         {
         modelBuilder.Entity<Product>().HasData(
             new Product { Id = 1, Name = "Laptop", Description = "Laptop gaming 16GB RAM", Price = 1299.99m, Stock = 15 },

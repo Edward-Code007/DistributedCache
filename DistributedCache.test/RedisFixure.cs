@@ -24,8 +24,6 @@ public class RedisFixture : IAsyncLifetime
         _container = new RedisBuilder("redis:7-alpine") 
             .WithPortBinding(int.Parse(_redisSettings.Port),6379)
             .WithHostname(_redisSettings.Hostname)
-            .WithCleanUp(true)
-            .WithAutoRemove(true)
             .Build();
     }
 
