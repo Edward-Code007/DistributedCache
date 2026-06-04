@@ -19,6 +19,7 @@ public class ProductsUnitTest
         iHostEnvMock.SetupGet(x => x.EnvironmentName).Returns("xUnit");
         var dbContext = new AppDbContext(dbOpt, dbSettingsMock.Object, iHostEnvMock.Object);
         dbContext.Database.EnsureCreated();
+        this._appDbContext = dbContext;
     }
     [Fact]
     public async Task GetAllProduct_ShouldReturnAllProducts()
@@ -33,6 +34,6 @@ public class ProductsUnitTest
         Assert.IsType<List<Product>>(result);
 
     }
-    
+
 
 }
