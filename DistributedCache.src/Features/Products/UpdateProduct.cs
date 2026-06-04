@@ -23,17 +23,17 @@ public class UpdateProduct : IEndpoint
         .WithName("UpdateProduct");
     }
 
-    private static async Task<Product?> UpdateProductInDatabase(AppDbContext db, int id, Product input)
+    private static async Task<Product?> UpdateProductInDatabase(AppDbContext db, int id, ProductUpdateDto input)
     {
         var product = await db.Products.FindAsync(id);
         if (product is null) return null;
 
-        product.Name = input.Name;
-        product.Description = input.Description;
         product.Price = input.Price;
-        product.Stock = input.Stock;
 
+        if (db.ChangeTracker.HasChanges())
+        {
         await db.SaveChangesAsync();
+        }
         return product;
     }
 

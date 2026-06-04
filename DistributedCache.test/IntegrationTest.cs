@@ -48,7 +48,7 @@ public class IntegrationTest(RedisFixture redisFixture, PostgresFixture postgres
     IDistributedCache distCache = new RedisCache(redisOpt);
 
 
-    var result = await GetProductById.Execute(id, _postgresFixure._dbContext, distCache, _redisFixure._cacheSettings);
+    var result = await GetProductById.Execute(id,_redisFixure._cacheSettings ,distCache,_postgresFixure._dbContext);
     if (isFounded)
     {
     Assert.NotNull(result);

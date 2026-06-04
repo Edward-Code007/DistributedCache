@@ -4,6 +4,7 @@ using DistributedCache.Data;
 using DistributedCache.Endpoints;
 using DistributedCache.Models;
 using DistributedCache.Settings;
+using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Options;
@@ -16,17 +17,16 @@ public class GetProductById : IEndpoint
     {
         app.MapGet("/products/{id:int}", async (int id, AppDbContext db, IDistributedCache cache, IOptions<CacheSettings> cacheSettings) =>
         {
-            var settings = cacheSettings.Value;
-            var cacheKey = $"{settings.ProductKeyPrefix}:{id}";
-
-            var productCached = await SearchCache(cache, cacheKey);
-            if (productCached is not null) return Results.Ok(new { source = "cache", data = productCached });
-
-            var product = await db.Products.AsNoTracking().FirstOrDefaultAsync(p => p.Id == id);
-            if (product is null) return Results.NotFound(new { message = "Product not found", id });
-            
-            await SetCache(cache,product,cacheSettings.Value,cacheKey);
-            return Results.Ok(new { source = "database", data = product });
+          var result = await Execute(id,cacheSettings.Value,cache,db);
+            if (result.isFound)
+            {
+                return Results.Ok(new
+                {
+                   result.source,
+                   result.product 
+                });
+            }
+            return Results.NotFound("Not Found");
         })
         .WithName("GetProduct");
     }
@@ -47,5 +47,19 @@ public class GetProductById : IEndpoint
         };
         return cache.SetStringAsync(cacheKey, json, options);
     }
+    public async static Task<ProductResponse> Execute(int id,CacheSettings cacheSettings,IDistributedCache cache,AppDbContext db)
+    {
+           var settings = cacheSettings;
+            var cacheKey = $"{settings.ProductKeyPrefix}:{id}";
 
+            var productCached = await SearchCache(cache, cacheKey);
+            if (productCached is not null) return new ProductResponse("cache",productCached,true);
+
+            var productDb = await db.Products.AsNoTracking().FirstOrDefaultAsync(p => p.Id == id);
+            if (productDb is null) return new ProductResponse("_blank",null,false);
+
+            await SetCache(cache,productDb,cacheSettings,cacheKey);
+            return new ProductResponse("database",productDb,true);
+    }
+    public record ProductResponse(string source,Product? product, bool isFound );
 }
