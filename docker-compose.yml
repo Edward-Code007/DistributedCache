@@ -1,0 +1,46 @@
+# Use postgres/example user/password credentials
+
+services:
+
+  db:
+    image: postgres
+    # set shared memory limit when using docker compose
+    shm_size: 128mb
+    # or set shared memory limit when deploy via swarm stack
+    #volumes:
+    #  - type: tmpfs
+    #    target: /dev/shm
+    #    tmpfs:
+    #      size: 134217728 # 128*2^20 bytes = 128Mb
+    environment:
+      POSTGRES_PASSWORD: user
+      POSTGRES_USER: user
+    ports:
+      - "5432:5432"
+  adminer:
+    image: adminer
+    ports:
+      - 8080:8080
+  redis:
+    build:
+      context: ./redis
+      dockerfile: Dockerfile
+    container_name: distributed-cache-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - cache-network
+networks:
+  cache-network:
+    driver: bridge
+volumes:
+  redis_data:
+    driver: local
