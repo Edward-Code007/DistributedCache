@@ -24,7 +24,7 @@ Este proyecto fue creado con fines educativos y de portafolio. Implementa una AP
 | StackExchange.Redis | Cliente Redis para .NET |
 | Docker Compose | Infraestructura de Redis |
 | Xunit | Test Unitario e Integracion |
-| TestContainers |
+| TestContainers | Servicios Reales |
 
 ## Arquitectura
 

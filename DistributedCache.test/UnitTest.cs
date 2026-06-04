@@ -14,8 +14,11 @@ public class ProductsUnitTest
     {
         var dbOpt = new DbContextOptionsBuilder<AppDbContext>()
         .UseInMemoryDatabase("dbTets").Options;
+
         var dbSettingsMock = new Mock<IOptions<DatabaseSettings>>();
+
         var iHostEnvMock = new Mock<IHostEnvironment>();
+
         iHostEnvMock.SetupGet(x => x.EnvironmentName).Returns("xUnit");
         var dbContext = new AppDbContext(dbOpt, dbSettingsMock.Object, iHostEnvMock.Object);
         dbContext.Database.EnsureCreated();
