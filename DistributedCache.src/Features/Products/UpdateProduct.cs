@@ -13,14 +13,19 @@ public class UpdateProduct : IEndpoint
     {
         app.MapPut("/products/{id:int}", async (int id, ProductUpdateDto input, AppDbContext db, IDistributedCache cache, IOptions<CacheSettings> cacheSettings) =>
         {
-            var product = await UpdateProductInDatabase(db, id, input);
+            var product = await Execute(id, input, db, cacheSettings.Value, cache);
             if (product is null) return Results.NotFound(new { message = "Product not found", id });
-
-            await InvalidateProductCache(id, cacheSettings.Value, cache);
-
             return Results.Ok(new { message = "Product updated successfully", product });
         })
         .WithName("UpdateProduct");
+    }
+
+    public static async Task<Product?> Execute(int id, ProductUpdateDto input, AppDbContext db, CacheSettings cacheSettings, IDistributedCache cache)
+    {
+        var product = await UpdateProductInDatabase(db, id, input);
+        if (product is null) return null;
+        await InvalidateProductCache(id, cacheSettings, cache);
+        return product;
     }
 
     private static async Task<Product?> UpdateProductInDatabase(AppDbContext db, int id, ProductUpdateDto input)

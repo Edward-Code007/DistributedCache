@@ -9,5 +9,5 @@ public class DatabaseSettings
     public string Hostname{get;set;} = "localhost";
     public string DbName {get;set;} = "db";
     public string Port{get;set;} = "5432";
-    public string StringConnection => $"Host={Hostname};Database={DbName};Username={User};Password={Password}"; 
+    public string StringConnection => $"Host={Hostname};Port={Port};Database={DbName};Username={User};Password={Password}";
 }

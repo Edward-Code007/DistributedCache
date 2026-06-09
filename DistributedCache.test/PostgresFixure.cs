@@ -5,44 +5,35 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 using Moq;
 using Testcontainers.PostgreSql;
+
 public class PostgresFixture : IAsyncLifetime
 {
-    public readonly PostgreSqlContainer _container;
-    public AppDbContext _dbContext;
-    public readonly string _stringConnection;
-    public DatabaseSettings _dbSettings;
+    private readonly PostgreSqlContainer _container;
+    public AppDbContext _dbContext = null!;
+
     public PostgresFixture()
     {
-        _dbSettings = new DatabaseSettings()
-        {
-            DbName = "dbtest",
-            Hostname = "localhost",
-            User = "user",
-            Password = "password",
-            Port = "5432",
-        };
-        this._container = new PostgreSqlBuilder("postgres")
-        .WithDatabase(_dbSettings.DbName)
-        .WithUsername(_dbSettings.User)
-        .WithPassword(_dbSettings.Password)
-        .WithHostname(_dbSettings.Hostname)
-        .WithPortBinding(int.Parse(_dbSettings.Port), 5432)
-        .Build();
+        _container = new PostgreSqlBuilder("postgres").Build();
     }
+
     public async Task DisposeAsync()
     {
-        await this._container.DisposeAsync();
-
+        await _dbContext.DisposeAsync();
+        await _container.DisposeAsync();
     }
 
     public async Task InitializeAsync()
     {
-        await this._container.StartAsync();
-        IOptions<DatabaseSettings> dbSettingsOpt = Options.Create(_dbSettings);
+        await _container.StartAsync();
+
+        var dbContextOpts = new DbContextOptionsBuilder<AppDbContext>()
+            .UseNpgsql(_container.GetConnectionString())
+            .Options;
+
         var hostEnvMock = new Mock<IHostEnvironment>();
-        var dbContextOptMock = new DbContextOptions<AppDbContext>();
         hostEnvMock.SetupGet(x => x.EnvironmentName).Returns("Development");
-        _dbContext = new AppDbContext(dbContextOptMock, dbSettingsOpt, hostEnvMock.Object);
+
+        _dbContext = new AppDbContext(dbContextOpts, Options.Create(new DatabaseSettings()), hostEnvMock.Object);
         await _dbContext.Database.MigrateAsync();
     }
 }

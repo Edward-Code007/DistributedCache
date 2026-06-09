@@ -1,68 +1,102 @@
-﻿using DistributedCache.Features.Products;
+using DistributedCache.Features.Products;
 using DistributedCache.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Caching.StackExchangeRedis;
-using Testcontainers.Redis;
 
 namespace DistributedCache.test;
 
 public class IntegrationTest(RedisFixture redisFixture, PostgresFixture postgresFixture)
 : IClassFixture<PostgresFixture>, IClassFixture<RedisFixture>
 {
-  public readonly PostgresFixture _postgresFixure = postgresFixture;
-  public readonly RedisFixture _redisFixure = redisFixture;
+    public readonly PostgresFixture _postgresFixure = postgresFixture;
+    public readonly RedisFixture _redisFixure = redisFixture;
 
-  [Fact]
-  public async Task CreateProduct_ShouldCreateProductNInsertIntoDB()
-  {
-    //Arrange
-    var product = new Product()
-    {
-      Id = 200,
-      Name = "PcMsi",
-      Price = 1300,
-      Description = "NasaPc",
-      Stock = 5
-    };
-    //Act
-    await CreateProduct.AddProduct(product, _postgresFixure._dbContext);
-    //Assert
-    var productInDB = await _postgresFixure._dbContext.Products.FirstOrDefaultAsync(x => x.Id == 200);
-    Assert.IsType<Product>(productInDB);
-    Assert.Equal("NasaPc", productInDB.Description);
-  }
-  
-  [Theory]
-  [InlineData(2,true,"database")]
-  [InlineData(2,true,"cache")]
-  [InlineData(900,false,"_blank")]
-  public async Task RetrieveProductById_ShouldReturnFromCacheOrDbAndUpdateCache(int id, bool isFounded,string source)
-  {
-    var connection = StackExchange.Redis.ConnectionMultiplexer.Connect(this._redisFixure.ConnectionString);
-    var redisCache = connection.GetDatabase();
-    var redisOpt = new RedisCacheOptions()
-    {
-      Configuration = _redisFixure.ConnectionString
-    };
-    IDistributedCache distCache = new RedisCache(redisOpt);
+    private IDistributedCache BuildCache() =>
+        new RedisCache(new RedisCacheOptions { Configuration = _redisFixure.ConnectionString });
 
-
-    var result = await GetProductById.Execute(id,_redisFixure._cacheSettings ,distCache,_postgresFixure._dbContext);
-    if (isFounded)
+    [Fact]
+    public async Task CreateProduct_ShouldCreateProductNInsertIntoDB()
     {
-    Assert.NotNull(result);
-    Assert.Equal(source,result.source);
-    Assert.True(result.isFound);  
+        var product = new Product()
+        {
+            Id = 200,
+            Name = "PcMsi",
+            Price = 1300,
+            Description = "NasaPc",
+            Stock = 5
+        };
+        await CreateProduct.AddProduct(product, _postgresFixure._dbContext);
+        var productInDB = await _postgresFixure._dbContext.Products.FirstOrDefaultAsync(x => x.Id == 200);
+        Assert.IsType<Product>(productInDB);
+        Assert.Equal("NasaPc", productInDB.Description);
     }
-    else
+
+    [Fact]
+    public async Task RetrieveProductById_ShouldReturnFromDatabase_ThenFromCache()
     {
-    Assert.NotNull(result);
-    Assert.Equal(source,result.source);
-    Assert.False(result.isFound);  
+        IDistributedCache distCache = BuildCache();
+
+        var firstResult = await GetProductById.Execute(2, _redisFixure._cacheSettings, distCache, _postgresFixure._dbContext);
+        Assert.NotNull(firstResult);
+        Assert.True(firstResult.isFound);
+        Assert.Equal("database", firstResult.source);
+
+        var secondResult = await GetProductById.Execute(2, _redisFixure._cacheSettings, distCache, _postgresFixure._dbContext);
+        Assert.NotNull(secondResult);
+        Assert.True(secondResult.isFound);
+        Assert.Equal("cache", secondResult.source);
     }
-    
 
-  }
+    [Fact]
+    public async Task RetrieveProductById_ShouldReturnNotFound_WhenProductDoesNotExist()
+    {
+        IDistributedCache distCache = BuildCache();
 
+        var result = await GetProductById.Execute(900, _redisFixure._cacheSettings, distCache, _postgresFixure._dbContext);
+        Assert.NotNull(result);
+        Assert.False(result.isFound);
+        Assert.Equal("_blank", result.source);
+    }
+
+    [Fact]
+    public async Task UpdateProduct_ShouldUpdatePriceAndInvalidateCache()
+    {
+        IDistributedCache distCache = BuildCache();
+
+        // Warm up cache for product 4
+        await GetProductById.Execute(4, _redisFixure._cacheSettings, distCache, _postgresFixure._dbContext);
+
+        var input = new ProductUpdateDto { Price = 399.99m };
+        var updated = await UpdateProduct.Execute(4, input, _postgresFixure._dbContext, _redisFixure._cacheSettings, distCache);
+
+        Assert.NotNull(updated);
+        Assert.Equal(399.99m, updated.Price);
+
+        // Cache invalidated — next call must come from database
+        var afterUpdate = await GetProductById.Execute(4, _redisFixure._cacheSettings, distCache, _postgresFixure._dbContext);
+        Assert.Equal("database", afterUpdate.source);
+    }
+
+    [Fact]
+    public async Task UpdateProduct_ShouldReturnNull_WhenProductDoesNotExist()
+    {
+        IDistributedCache distCache = BuildCache();
+
+        var result = await UpdateProduct.Execute(9999, new ProductUpdateDto { Price = 1m }, _postgresFixure._dbContext, _redisFixure._cacheSettings, distCache);
+        Assert.Null(result);
+    }
+
+    [Fact]
+    public async Task DeleteProduct_ShouldSoftDelete_AndNotAppearInGetAll()
+    {
+        var deleted = await DeleteProduct.FindUserNDeleteDatabase(_postgresFixure._dbContext, 5);
+
+        Assert.NotNull(deleted);
+        Assert.True(deleted.IsDeleted);
+        Assert.NotNull(deleted.DeletedAt);
+
+        var allProducts = await GetAllProducts.RetrieveAllProducts(_postgresFixure._dbContext);
+        Assert.DoesNotContain(allProducts, p => p.Id == 5);
+    }
 }
